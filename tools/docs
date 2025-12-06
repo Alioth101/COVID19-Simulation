@@ -1,0 +1,121 @@
+# Government财富暴跌诊断报告
+
+## 实验数据分析
+
+### 修复后的实验结果（Day 30）
+- **迭代719（月底前）**: Government = -0.186
+- **迭代720（月底后）**: Government = -0.984  
+- **暴跌幅度**: -0.798 (相当于1436万元)
+
+### 修复后的实验结果（Day 60）
+- **迭代1439（月底前）**: Government = -0.973
+- **迭代1440（月底后）**: Government = -1.763
+- **暴跌幅度**: -0.790 (相当于1422万元)
+
+## 问题诊断
+
+### 1. 医疗费用（已修复）✅
+- 费率调整为60%：平均1800元/天
+- 月底重置expenses：避免累积
+- **Day 30预估**: 15人 × 1800 × 30 = 81万元
+- **影响程度**: 仅占暴跌的5.6%
+
+### 2. 失业救济支付 ⚠️
+代码分析（agents.py第702-703行）：
+```python
+for person in unemployed:
+    self.demand(person)  # 支付person.expenses
+```
+
+**问题发现**：
+- Person.expenses = 日常开销（600-8250元/天）
+- Government支付的是**日开销**，不是月总额！
+- 这实际上支付**太少**，不是太多
+
+### 3. 死亡时的隐性支出 🔍
+发现关键代码（agents.py第1804, 1809, 1820, 1825行）：
+```python
+if self.house is None:
+    self.environment.government.cash(-self.expenses)
+if self.employer is None:
+    self.environment.government.cash(-self.expenses)
+```
+
+**问题**：
+- 人员死亡时，如果无家或失业，Government直接支付expenses
+- 这发生在死亡瞬间，不在月底结算
+- 16%死亡率 = 80人死亡
+- 但这也只是日开销，影响有限
+
+### 4. 真正的问题：财富比例计算方式 ❗
+
+Government财富占比 = Government.wealth / total_wealth
+
+**关键发现**：
+- total_wealth可能在减少！
+- 如果总财富从1800万降到900万，即使Government财富不变，占比也会翻倍
+- 死亡导致财富消失，total_wealth持续下降
+
+## 财富消失机制分析
+
+### 可能的财富黑洞：
+
+1. **死亡财富消失**
+   - 80人死亡，每人平均财富约2-3万
+   - 总计200-240万财富消失
+   
+2. **Business倒闭**
+   - 员工死亡→Business关闭→财富归零
+   - Business财富从0.40降至0.29（Day 30）
+   
+3. **经济循环断裂**
+   - 死者不再消费→Business收入减少
+   - Business破产→更多失业→税收减少
+
+## 核心问题
+
+**不是Government支出太多，而是整个经济系统在崩溃！**
+
+1. total_wealth在减少（死亡+破产）
+2. Government收入在减少（税基崩溃）
+3. Government支出相对稳定（救济金）
+4. 结果：wealth/total_wealth比例急剧恶化
+
+## 建议解决方案
+
+### 方案A：修复财富消失
+```python
+# 死亡时财富转移而非消失
+if person.status == Status.Death:
+    # 财富转给家人或政府，而非消失
+    if person.house:
+        person.house.inherit(person.wealth)
+    else:
+        self.government.cash(person.wealth)
+```
+
+### 方案B：动态调整救济标准
+```python
+# 根据财政状况调整救济金
+if self.government.wealth < 0:
+    relief_rate = 0.3  # 财政困难时降低救济
+else:
+    relief_rate = 1.0
+```
+
+### 方案C：增加收入来源
+```python
+# 遗产税、资产税等
+inheritance_tax = dead_person.wealth * 0.5
+self.government.cash(inheritance_tax)
+```
+
+## 结论
+
+修复医疗费用后，Government财富暴跌的主要原因是：
+
+1. **总财富减少**：死亡和破产导致系统总财富下降
+2. **税基崩溃**：死者和失业者无法纳税
+3. **比例恶化**：即使绝对支出不大，wealth/total_wealth比例急剧下降
+
+这不是单纯的支出问题，而是整个经济生态系统的崩溃。需要系统性改革，而非局部优化。
