@@ -12,11 +12,7 @@ It is recommended to use Anaconda or Miniconda to manage dependencies.
 # Create and activate environment (example)
 conda create -n covid-sim python=3.9
 conda activate covid-sim
-
-# Install dependencies
-pip install -r requirements.txt
-```
-*(Note: If requirements.txt is not present, please install necessary packages like `openai`, `numpy`, `pandas`, etc.)*
+The requirements of this project are as follow:`openai`, `numpy`, `pandas`, `tenacity`.
 
 ### 2. API Configuration
 
@@ -75,7 +71,3 @@ The project includes several pre-configured scenarios:
 
 *   **API Costs**: Running large-scale simulations may consume significant API tokens. Please monitor your usage.
 *   **Proxy**: If you are in a region with restricted API access, please configure the `proxy` field in `llm_config.py`.
-
-## License
-
-[License Information]
