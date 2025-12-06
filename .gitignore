@@ -1,0 +1,10 @@
+# User specific config
+llm_config.py
+
+# Python cache
+__pycache__/
+*.pyc
+
+# System files
+.DS_Store
+Thumbs.db
